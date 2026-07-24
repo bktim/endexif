@@ -425,18 +425,68 @@ code {
 
 .meta__row {
   display: grid;
-  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
   gap: 0.5rem;
 }
 
 .meta__row dt {
   color: var(--muted);
-  overflow-wrap: anywhere;
+  overflow-wrap: normal;
+  word-break: normal;
 }
 
 .meta__row dd {
   margin: 0;
+  min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.meta__disclosure {
+  margin-top: 0.2rem;
+}
+
+.meta__disclosure-summary {
+  width: fit-content;
+  max-width: 100%;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.meta__disclosure-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+.meta__action--open,
+.meta__disclosure[open] .meta__action--closed {
+  display: none;
+}
+
+.meta__disclosure[open] .meta__action--open {
+  display: inline;
+}
+
+.meta__full-value {
+  margin-top: 0.2rem;
+  padding: 0.4rem 0.5rem;
+  background: var(--panel);
+  border-left: 2px solid var(--accent-dim);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 600px) {
+  .meta dl {
+    max-height: none;
+    overflow-y: visible;
+  }
+
+  .meta__row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.1rem;
+  }
 }
 
 /* Footer */

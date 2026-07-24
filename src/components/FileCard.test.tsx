@@ -29,8 +29,11 @@ describe('FileCard', () => {
           fieldCount: 2,
           camera: 'Fujifilm X-T5',
           fields: {
-            VeryLongMetadataFieldNameThatNeedsToWrap: 'A long metadata value that must remain readable',
+            VeryLongMetadataFieldNameThatNeedsToWrap: 'Uint8Array · 4 values',
             Artist: 'Ada Lovelace',
+          },
+          fieldSamples: {
+            VeryLongMetadataFieldNameThatNeedsToWrap: 'Uint8Array(4) [0, 1, 2, 255]',
           },
         },
       }),
@@ -43,7 +46,8 @@ describe('FileCard', () => {
     expect(markup).not.toContain('<details class="card__metadata" open="">');
     expect(markup).not.toContain('<dl>');
     expect(markup).not.toContain('<dt>VeryLongMetadataFieldNameThatNeedsToWrap</dt>');
-    expect(markup).not.toContain('<dd>A long metadata value that must remain readable</dd>');
+    expect(markup).not.toContain('<dd>Uint8Array · 4 values</dd>');
+    expect(markup).not.toContain('Uint8Array(4) [0, 1, 2, 255]');
   });
 
   it('does not render metadata disclosure for a clean ready card', () => {

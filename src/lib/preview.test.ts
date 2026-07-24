@@ -46,6 +46,9 @@ describe('readMetadata', () => {
     const { proxy, revoke } = Proxy.revocable({}, {});
     revoke();
     function sampleHandler() {}
+    const topLevelBytes20 = new Uint8Array(20).map((_, index) => index);
+    const topLevelBytes1 = new Uint8Array([7]);
+    const topLevelBytes0 = new Uint8Array(0);
 
     parseMock.mockResolvedValue({
       CapturedAt: new Date('2024-01-02T03:04:05.000Z'),
@@ -53,7 +56,11 @@ describe('readMetadata', () => {
       LongText: longText,
       Values: ['alpha', 2, null, undefined, 3n, Symbol('token'), sampleHandler],
       Nested: { enabled: true, child: { name: 'camera' } },
-      Bytes: new Uint8Array(32).map((_, index) => index),
+      Bytes: topLevelBytes20,
+      OneByte: topLevelBytes1,
+      NoBytes: topLevelBytes0,
+      NestedBytes: { bytes: new Uint8Array(20).map((_, index) => index) },
+      BufferView: new DataView(new ArrayBuffer(8)),
       Empty: null,
       Missing: undefined,
       LargeNumber: 9_007_199_254_740_993n,
@@ -72,8 +79,11 @@ describe('readMetadata', () => {
       Values:
         '["alpha", 2, null, undefined, 3n, Symbol(token), [Function sampleHandler]]',
       Nested: '{"enabled": true, "child": {"name": "camera"}}',
-      Bytes:
-        'Uint8Array(32) [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, …]',
+      Bytes: 'Uint8Array · 20 values',
+      OneByte: 'Uint8Array · 1 value',
+      NoBytes: 'Uint8Array · 0 values',
+      NestedBytes: '{"bytes": Uint8Array(20) [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, …]}',
+      BufferView: 'DataView(8 bytes)',
       Empty: 'null',
       Missing: 'undefined',
       LargeNumber: '9007199254740993n',
@@ -82,10 +92,55 @@ describe('readMetadata', () => {
       Circular: '{"label": "root", "self": [Circular]}',
       Make: '[Unserializable]',
     });
+    expect(summary.fieldSamples).toEqual({
+      Bytes: 'Uint8Array(20) [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, …]',
+      OneByte: 'Uint8Array(1) [7]',
+      NoBytes: 'Uint8Array(0) []',
+    });
+    expect(summary.fieldSamples?.Bytes).not.toBe(summary.fields.Bytes);
+    expect(Object.values(summary.fieldSamples ?? {}).every((value) => typeof value === 'string')).toBe(true);
     expect(summary.camera).toBeUndefined();
     expect(summary.fields.LongText).toHaveLength(250);
-    expect(summary.fields.Bytes.length).toBeLessThan(120);
+    expect(summary.fields.Bytes).toBe('Uint8Array · 20 values');
+    expect(summary.fields.OneByte).toBe('Uint8Array · 1 value');
+    expect(summary.fields.NoBytes).toBe('Uint8Array · 0 values');
+    expect(summary.fields.NestedBytes).toContain('Uint8Array(20) [0, 1, 2, 3');
+    expect(summary.fields.BufferView).toBe('DataView(8 bytes)');
     expect(summary.fieldCount).toBe(Object.keys(summary.fields).length);
+  });
+
+  it('keeps typed-array samples safe for special field keys', async () => {
+    parseMock.mockResolvedValue(
+      Object.fromEntries([
+        ['__proto__', new Uint8Array([1, 2, 3])],
+        ['constructor', new Uint8Array([4, 5, 6, 7])],
+        ['', new Uint8Array(0)],
+        ['ordinary', new Uint8Array([8, 9])],
+      ]),
+    );
+
+    const summary = await readMetadata(new Blob());
+
+    expect(summary.fields).toEqual(
+      Object.fromEntries([
+        ['__proto__', 'Uint8Array · 3 values'],
+        ['constructor', 'Uint8Array · 4 values'],
+        ['', 'Uint8Array · 0 values'],
+        ['ordinary', 'Uint8Array · 2 values'],
+      ]),
+    );
+    expect(summary.fieldSamples).toEqual(
+      Object.fromEntries([
+        ['__proto__', 'Uint8Array(3) [1, 2, 3]'],
+        ['constructor', 'Uint8Array(4) [4, 5, 6, 7]'],
+        ['', 'Uint8Array(0) []'],
+        ['ordinary', 'Uint8Array(2) [8, 9]'],
+      ]),
+    );
+    expect(Object.getPrototypeOf(summary.fieldSamples)).toBe(null);
+    expect(Object.prototype.hasOwnProperty.call(summary.fieldSamples, 'toString')).toBe(false);
+    expect(summary.fieldCount).toBe(4);
+    expect(Object.keys(summary.fields)).toHaveLength(4);
   });
 
   it('preserves GPS, camera, capture date, and software summaries', async () => {

@@ -6,6 +6,45 @@ interface Props {
   variant: 'before' | 'after';
 }
 
+interface ValueDisclosureProps {
+  label: 'sample' | 'expanded value';
+  value: string;
+}
+
+function ValueDisclosure({ label, value }: ValueDisclosureProps) {
+  return (
+    <details className="meta__disclosure">
+      <summary className="meta__disclosure-summary">
+        <span className="meta__action meta__action--closed">View {label}</span>
+        <span className="meta__action meta__action--open">Hide {label}</span>
+      </summary>
+      <div className="meta__full-value">{value}</div>
+    </details>
+  );
+}
+
+function MetadataValue({ value, sample }: { value: string; sample?: string }) {
+  if (sample !== undefined) {
+    return (
+      <>
+        {value}
+        <ValueDisclosure label="sample" value={sample} />
+      </>
+    );
+  }
+
+  if (value.length > 160 && (value.startsWith('{') || value.startsWith('['))) {
+    return (
+      <>
+        {value.slice(0, 79)}…
+        <ValueDisclosure label="expanded value" value={value} />
+      </>
+    );
+  }
+
+  return value;
+}
+
 export function MetadataPanel({ title, meta, variant }: Props) {
   if (!meta) {
     return (
@@ -36,12 +75,21 @@ export function MetadataPanel({ title, meta, variant }: Props) {
         </p>
       )}
       <dl>
-        {Object.entries(meta.fields).map(([key, value]) => (
-          <div key={key} className="meta__row">
-            <dt>{key}</dt>
-            <dd>{value}</dd>
-          </div>
-        ))}
+        {Object.entries(meta.fields).map(([key, value]) => {
+          const sample =
+            meta.fieldSamples && Object.hasOwn(meta.fieldSamples, key)
+              ? meta.fieldSamples[key]
+              : undefined;
+
+          return (
+            <div key={key} className="meta__row">
+              <dt>{key}</dt>
+              <dd>
+                <MetadataValue value={value} sample={sample} />
+              </dd>
+            </div>
+          );
+        })}
       </dl>
     </div>
   );

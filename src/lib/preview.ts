@@ -12,6 +12,7 @@ export interface MetadataSummary {
   fieldCount: number;
   /** parsed output converted to safe display strings */
   fields: Record<string, string>;
+  fieldSamples?: Record<string, string>;
 }
 
 const TYPED_ARRAY_SAMPLE_SIZE = 16;
@@ -36,11 +37,27 @@ function omittedMarker(count: number): string {
   return `… ${count} ${count === 1 ? 'item' : 'items'} omitted`;
 }
 
+function formatTypedArraySample(
+  value: ArrayBufferView & ArrayLike<unknown>,
+  ancestors: Set<object>,
+  depth: number,
+): string {
+  const size = value.length;
+  const sampleSize = Math.min(size, TYPED_ARRAY_SAMPLE_SIZE);
+  const sample = Array.from({ length: sampleSize }, (_, index) =>
+    toDisplay(value[index], ancestors, true, depth + 1),
+  );
+  if (size > sampleSize) sample.push('…');
+  return `${value.constructor.name}(${size}) [${sample.join(', ')}]`;
+}
+
 function formatDisplay(
   value: unknown,
   ancestors: Set<object>,
   nested: boolean,
   depth: number,
+  fieldSamples?: Record<string, string>,
+  fieldKey?: string,
 ): string {
   if (value === null) return 'null';
   if (value === undefined) return 'undefined';
@@ -67,13 +84,16 @@ function formatDisplay(
     if (value instanceof DataView) return `DataView(${value.byteLength} bytes)`;
 
     const typed = value as ArrayBufferView & ArrayLike<unknown>;
-    const size = typed.length;
-    const sampleSize = Math.min(size, TYPED_ARRAY_SAMPLE_SIZE);
-    const sample = Array.from({ length: sampleSize }, (_, index) =>
-      toDisplay(typed[index], ancestors, true, depth + 1),
-    );
-    if (size > sampleSize) sample.push('…');
-    return `${value.constructor.name}(${size}) [${sample.join(', ')}]`;
+    if (!nested) {
+      if (fieldSamples && fieldKey !== undefined) {
+        fieldSamples[fieldKey] = truncateOutput(
+          formatTypedArraySample(typed, ancestors, depth),
+        );
+      }
+      const size = typed.length;
+      return `${value.constructor.name} · ${size} ${size === 1 ? 'value' : 'values'}`;
+    }
+    return formatTypedArraySample(typed, ancestors, depth);
   }
 
   if (ancestors.has(value)) return '[Circular]';
@@ -83,7 +103,7 @@ function formatDisplay(
     if (Array.isArray(value)) {
       const itemCount = Math.min(value.length, MAX_COLLECTION_ITEMS);
       const items = Array.from({ length: itemCount }, (_, index) =>
-        toDisplay(value[index], ancestors, true, depth + 1),
+        toDisplay(value[index], ancestors, true, depth + 1, fieldSamples),
       );
       if (value.length > itemCount) {
         items.push(omittedMarker(value.length - itemCount));
@@ -97,7 +117,7 @@ function formatDisplay(
       .slice(0, itemCount)
       .map(
         ([key, item]) =>
-          `${quote(key)}: ${toDisplay(item, ancestors, true, depth + 1)}`,
+          `${quote(key)}: ${toDisplay(item, ancestors, true, depth + 1, fieldSamples)}`,
       );
     if (entries.length > itemCount) {
       items.push(omittedMarker(entries.length - itemCount));
@@ -113,9 +133,13 @@ function toDisplay(
   ancestors = new Set<object>(),
   nested = false,
   depth = 0,
+  fieldSamples?: Record<string, string>,
+  fieldKey?: string,
 ): string {
   try {
-    return truncateOutput(formatDisplay(value, ancestors, nested, depth));
+    return truncateOutput(
+      formatDisplay(value, ancestors, nested, depth, fieldSamples, fieldKey),
+    );
   } catch {
     return '[Unserializable]';
   }
@@ -170,8 +194,9 @@ export async function readMetadata(file: File | Blob): Promise<MetadataSummary> 
   }
 
   const normalized = Object.fromEntries(entries);
+  const fieldSamples: Record<string, string> = Object.create(null);
   const fields = Object.fromEntries(
-    entries.map(([key, value]) => [key, toDisplay(value)]),
+    entries.map(([key, value]) => [key, toDisplay(value, undefined, false, 0, fieldSamples, key)]),
   );
 
   const summary: MetadataSummary = {
@@ -179,6 +204,7 @@ export async function readMetadata(file: File | Blob): Promise<MetadataSummary> 
     fieldCount: entries.length,
     fields,
   };
+  if (Object.keys(fieldSamples).length > 0) summary.fieldSamples = fieldSamples;
 
   const lat = normalized.latitude;
   const lon = normalized.longitude;
