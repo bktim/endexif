@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { type SyntheticEvent, useState } from 'react';
 import type { FileItem } from '../types';
 import { MetadataPanel } from './MetadataPanel';
 
@@ -16,6 +16,7 @@ function formatBytes(bytes: number): string {
 
 export function FileCard({ item, onDownload, onRemove }: Props) {
   const [expanded, setExpanded] = useState(false);
+  const [metadataOpen, setMetadataOpen] = useState(false);
   const { status, result } = item;
 
   return (
@@ -51,13 +52,14 @@ export function FileCard({ item, onDownload, onRemove }: Props) {
           {status === 'done' && (
             <>
               <span className="badge badge--ok">clean</span>
-              <button className="btn btn--small" onClick={() => onDownload(item)}>
+              <button type="button" className="btn btn--small" onClick={() => onDownload(item)}>
                 Download
               </button>
             </>
           )}
           {status === 'error' && <span className="badge badge--err">failed</span>}
           <button
+            type="button"
             className="btn btn--ghost"
             aria-label={`Remove ${item.file.name}`}
             onClick={() => onRemove(item.id)}
@@ -81,7 +83,7 @@ export function FileCard({ item, onDownload, onRemove }: Props) {
           {item.after?.clean && (
             <p className="card__verified">Verified clean — re-read of cleaned file found nothing</p>
           )}
-          <button className="btn btn--link" onClick={() => setExpanded((v) => !v)}>
+          <button type="button" className="btn btn--link" onClick={() => setExpanded((v) => !v)}>
             {expanded ? 'Hide details' : 'Show before / after'}
           </button>
           {expanded && (
@@ -111,6 +113,17 @@ export function FileCard({ item, onDownload, onRemove }: Props) {
             {item.before.fieldCount} metadata fields — {item.before.camera ?? 'unknown camera'}
             {item.before.takenAt ? ` — ${item.before.takenAt}` : ''}
           </p>
+          <details
+            className="card__metadata"
+            onToggle={(event: SyntheticEvent<HTMLDetailsElement>) =>
+              setMetadataOpen(event.currentTarget.open)
+            }
+          >
+            <summary className="card__metadata-summary">
+              View all {item.before.fieldCount} metadata fields
+            </summary>
+            {metadataOpen && <MetadataPanel title="Metadata" meta={item.before} variant="before" />}
+          </details>
         </div>
       )}
     </article>

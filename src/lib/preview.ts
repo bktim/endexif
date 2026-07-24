@@ -10,34 +10,131 @@ export interface MetadataSummary {
   software?: string;
   /** number of parsed metadata keys */
   fieldCount: number;
-  /** raw parsed output, trimmed to displayable primitives */
+  /** parsed output converted to safe display strings */
   fields: Record<string, string>;
 }
 
-const INTERESTING = [
-  'Make',
-  'Model',
-  'LensModel',
-  'DateTimeOriginal',
-  'CreateDate',
-  'Software',
-  'Artist',
-  'Copyright',
-  'ImageDescription',
-  'UserComment',
-  'ExposureTime',
-  'FNumber',
-  'ISO',
-  'FocalLength',
-  'SerialNumber',
-  'OwnerName',
-] as const;
+const TYPED_ARRAY_SAMPLE_SIZE = 16;
+const MAX_DEPTH = 5;
+const MAX_COLLECTION_ITEMS = 100;
+const MAX_OUTPUT_LENGTH = 4_096;
+const OUTPUT_TRUNCATION_MARKER = '… [truncated]';
 
-function toDisplay(value: unknown): string | null {
-  if (value == null) return null;
-  if (value instanceof Date) return value.toISOString();
-  if (typeof value === 'string') return value.slice(0, 200);
-  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+function quote(value: string): string {
+  return JSON.stringify(value) ?? '""';
+}
+
+function truncateOutput(value: string): string {
+  if (value.length <= MAX_OUTPUT_LENGTH) return value;
+  return `${value.slice(
+    0,
+    MAX_OUTPUT_LENGTH - OUTPUT_TRUNCATION_MARKER.length,
+  )}${OUTPUT_TRUNCATION_MARKER}`;
+}
+
+function omittedMarker(count: number): string {
+  return `… ${count} ${count === 1 ? 'item' : 'items'} omitted`;
+}
+
+function formatDisplay(
+  value: unknown,
+  ancestors: Set<object>,
+  nested: boolean,
+  depth: number,
+): string {
+  if (value === null) return 'null';
+  if (value === undefined) return 'undefined';
+
+  switch (typeof value) {
+    case 'string':
+      return nested ? quote(value) : value;
+    case 'number':
+    case 'boolean':
+      return String(value);
+    case 'bigint':
+      return `${value}n`;
+    case 'symbol':
+      return String(value);
+    case 'function':
+      return `[Function ${value.name || 'anonymous'}]`;
+  }
+
+  if (value instanceof Date) {
+    return Number.isNaN(value.getTime()) ? 'Invalid Date' : value.toISOString();
+  }
+
+  if (ArrayBuffer.isView(value)) {
+    if (value instanceof DataView) return `DataView(${value.byteLength} bytes)`;
+
+    const typed = value as ArrayBufferView & ArrayLike<unknown>;
+    const size = typed.length;
+    const sampleSize = Math.min(size, TYPED_ARRAY_SAMPLE_SIZE);
+    const sample = Array.from({ length: sampleSize }, (_, index) =>
+      toDisplay(typed[index], ancestors, true, depth + 1),
+    );
+    if (size > sampleSize) sample.push('…');
+    return `${value.constructor.name}(${size}) [${sample.join(', ')}]`;
+  }
+
+  if (ancestors.has(value)) return '[Circular]';
+  if (depth >= MAX_DEPTH) return `[Depth limit ${MAX_DEPTH} reached]`;
+  ancestors.add(value);
+  try {
+    if (Array.isArray(value)) {
+      const itemCount = Math.min(value.length, MAX_COLLECTION_ITEMS);
+      const items = Array.from({ length: itemCount }, (_, index) =>
+        toDisplay(value[index], ancestors, true, depth + 1),
+      );
+      if (value.length > itemCount) {
+        items.push(omittedMarker(value.length - itemCount));
+      }
+      return `[${items.join(', ')}]`;
+    }
+
+    const entries = Object.entries(value);
+    const itemCount = Math.min(entries.length, MAX_COLLECTION_ITEMS);
+    const items = entries
+      .slice(0, itemCount)
+      .map(
+        ([key, item]) =>
+          `${quote(key)}: ${toDisplay(item, ancestors, true, depth + 1)}`,
+      );
+    if (entries.length > itemCount) {
+      items.push(omittedMarker(entries.length - itemCount));
+    }
+    return `{${items.join(', ')}}`;
+  } finally {
+    ancestors.delete(value);
+  }
+}
+
+function toDisplay(
+  value: unknown,
+  ancestors = new Set<object>(),
+  nested = false,
+  depth = 0,
+): string {
+  try {
+    return truncateOutput(formatDisplay(value, ancestors, nested, depth));
+  } catch {
+    return '[Unserializable]';
+  }
+}
+
+function toSummaryDisplay(value: unknown): string | null {
+  try {
+    if (
+      value != null &&
+      (typeof value === 'string' ||
+        typeof value === 'number' ||
+        typeof value === 'boolean' ||
+        value instanceof Date)
+    ) {
+      return toDisplay(value);
+    }
+  } catch {
+    return null;
+  }
   return null;
 }
 
@@ -61,29 +158,41 @@ export async function readMetadata(file: File | Blob): Promise<MetadataSummary> 
     return { clean: true, fieldCount: 0, fields: {} };
   }
 
-  const fields: Record<string, string> = {};
-  for (const key of INTERESTING) {
-    const display = toDisplay(parsed[key]);
-    if (display !== null) fields[key] = display;
+  let entries: [string, unknown][];
+  try {
+    entries = Object.entries(parsed).filter(([key]) => key !== 'errors');
+  } catch {
+    return { clean: true, fieldCount: 0, fields: {} };
   }
+
+  if (entries.length === 0) {
+    return { clean: true, fieldCount: 0, fields: {} };
+  }
+
+  const normalized = Object.fromEntries(entries);
+  const fields = Object.fromEntries(
+    entries.map(([key, value]) => [key, toDisplay(value)]),
+  );
 
   const summary: MetadataSummary = {
     clean: false,
-    fieldCount: Object.keys(parsed).length,
+    fieldCount: entries.length,
     fields,
   };
 
-  const lat = parsed.latitude;
-  const lon = parsed.longitude;
+  const lat = normalized.latitude;
+  const lon = normalized.longitude;
   if (typeof lat === 'number' && typeof lon === 'number') {
     summary.gps = { latitude: lat, longitude: lon };
   }
-  const make = toDisplay(parsed.Make);
-  const model = toDisplay(parsed.Model);
+  const make = toSummaryDisplay(normalized.Make);
+  const model = toSummaryDisplay(normalized.Model);
   if (make || model) summary.camera = [make, model].filter(Boolean).join(' ');
-  const taken = toDisplay(parsed.DateTimeOriginal) ?? toDisplay(parsed.CreateDate);
+  const taken =
+    toSummaryDisplay(normalized.DateTimeOriginal) ??
+    toSummaryDisplay(normalized.CreateDate);
   if (taken) summary.takenAt = taken;
-  const software = toDisplay(parsed.Software);
+  const software = toSummaryDisplay(normalized.Software);
   if (software) summary.software = software;
 
   return summary;

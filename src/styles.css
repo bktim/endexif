@@ -312,6 +312,25 @@ code {
   font-weight: 600;
 }
 
+.card__metadata {
+  margin-top: 0.35rem;
+}
+
+.card__metadata-summary {
+  width: fit-content;
+  max-width: 100%;
+  color: var(--accent);
+  cursor: pointer;
+  text-decoration: underline;
+  overflow-wrap: anywhere;
+}
+
+.card__metadata-summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .card__compare {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -358,6 +377,10 @@ code {
   font-size: 0.8rem;
 }
 
+.card__metadata .meta {
+  margin-top: 0.6rem;
+}
+
 .meta h4 {
   margin: 0 0 0.4rem;
   font-size: 0.8rem;
@@ -402,17 +425,18 @@ code {
 
 .meta__row {
   display: grid;
-  grid-template-columns: 110px 1fr;
+  grid-template-columns: minmax(0, 110px) minmax(0, 1fr);
   gap: 0.5rem;
 }
 
 .meta__row dt {
   color: var(--muted);
+  overflow-wrap: anywhere;
 }
 
 .meta__row dd {
   margin: 0;
-  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
 /* Footer */
