@@ -47,12 +47,55 @@ Privacy claims are cheap. This app is built so you can **verify** them:
   and saved via the File System Access API where available (Blob download
   fallback elsewhere).
 
+## Generated world map
+
+The photo detail view shows a small world map with a dot at the photo's GPS
+coordinates, plus a label naming the nearest city. The map is a
+**pre-computed SVG map** of Natural Earth 1:50m land and country borders, and
+the city labels come from a **pre-computed city dataset**. Both generated
+assets are committed, embedded in the bundle, and verified during builds.
+
+No runtime map dependencies or network activity:
+
+- **No geolocation API** — coordinates come from the photo's embedded EXIF GPS
+  data. The browser's geolocation is never touched.
+- **No map tiles** — land and country-border paths are embedded in the bundle.
+  No tile server, no slippy map, no network requests for map imagery.
+- **No reverse geocoding** — the nearest-city lookup scans the embedded city
+  dataset locally. No address lookup, no external API calls of any kind.
+
+### Provenance & tools
+
+| Component | Source | License |
+|-----------|--------|---------|
+| Land + country borders | [Natural Earth](https://www.naturalearthdata.com/) 1:50m | Public domain |
+| City data | [GeoNames](https://www.geonames.org/) via [all-the-cities](https://github.com/zeke/all-the-cities) 3.1.0 | CC BY 4.0 (GeoNames) / MIT (package) |
+| Vector topology | [world-atlas](https://github.com/topojson/world-atlas) 2.0.2 | ISC |
+| Projection + path | [d3-geo](https://d3js.org/d3-geo) 3.1.1 | ISC |
+| Topology reader | [topojson-client](https://github.com/topojson/topojson-client) 3.1.0 | ISC |
+
+All mapping tools are **dev-only** (`devDependencies`) and are never imported by
+runtime code. Production ships only the committed generated module; developers
+and CI use the tools solely to verify or regenerate it.
+
+### Commands
+
+```sh
+npm run generate:map      # regenerate src/generated/worldLandPath.ts from world-atlas
+npm run check:map         # verify the committed module is fresh (runs before every build)
+npm run generate:cities   # regenerate src/generated/cities.ts from all-the-cities
+npm run check:cities      # verify the committed module is fresh (runs before every build)
+```
+
+`npm run build` runs `check:map` and `check:cities` automatically. CI also
+runs both checks and the test suite before every deploy.
+
 ## Develop
 
 ```sh
 npm install
 npm run dev        # dev server (note: CSP meta is only injected in prod builds)
-npm run build      # typecheck + production build to dist/
+npm run build      # freshness check + typecheck + production build to dist/
 npm run preview    # serve the production build locally
 ```
 
