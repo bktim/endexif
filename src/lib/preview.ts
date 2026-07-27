@@ -208,7 +208,16 @@ export async function readMetadata(file: File | Blob): Promise<MetadataSummary> 
 
   const lat = normalized.latitude;
   const lon = normalized.longitude;
-  if (typeof lat === 'number' && typeof lon === 'number') {
+  if (
+    typeof lat === 'number' &&
+    typeof lon === 'number' &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lon >= -180 &&
+    lon <= 180
+  ) {
     summary.gps = { latitude: lat, longitude: lon };
   }
   const make = toSummaryDisplay(normalized.Make);

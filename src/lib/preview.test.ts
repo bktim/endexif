@@ -163,6 +163,40 @@ describe('readMetadata', () => {
     expect(Object.keys(summary.fields)).toHaveLength(6);
   });
 
+  it('rejects invalid GPS coordinates but keeps valid zero and boundaries', async () => {
+    const invalidCases: Array<[string, unknown, unknown]> = [
+      ['NaN latitude', Number.NaN, 0],
+      ['infinite latitude', Number.POSITIVE_INFINITY, 0],
+      ['negative infinite latitude', Number.NEGATIVE_INFINITY, 0],
+      ['out-of-range latitude', 90.0001, 0],
+      ['out-of-range longitude', 0, -180.0001],
+      ['string latitude', '51.5', -0.12],
+      ['string longitude', 51.5, '-0.12'],
+      ['missing longitude', 51.5, undefined],
+      ['missing latitude', undefined, -0.12],
+    ];
+
+    for (const [label, latitude, longitude] of invalidCases) {
+      parseMock.mockResolvedValueOnce({ latitude, longitude, label });
+
+      const summary = await readMetadata(new Blob());
+
+      expect(summary.gps, label).toBeUndefined();
+      expect(summary.fieldCount).toBe(3);
+      expect(summary.fields).toEqual({ latitude: String(latitude), longitude: String(longitude), label });
+    }
+
+    parseMock.mockResolvedValueOnce({ latitude: 0, longitude: 0 });
+    await expect(readMetadata(new Blob())).resolves.toMatchObject({
+      gps: { latitude: 0, longitude: 0 },
+    });
+
+    parseMock.mockResolvedValueOnce({ latitude: -90, longitude: 180 });
+    await expect(readMetadata(new Blob())).resolves.toMatchObject({
+      gps: { latitude: -90, longitude: 180 },
+    });
+  });
+
   it('bounds output length, collection items, and nesting depth', async () => {
     const wideObject = Object.fromEntries(
       Array.from({ length: 101 }, (_, index) => [`key${index}`, index]),
