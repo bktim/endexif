@@ -9,6 +9,9 @@
   --accent-dim: #1f6b4c;
   --warn: #ffb454;
   --err: #ff5c5c;
+  --map-water: #0d1c26;
+  --map-land: #526a70;
+  --map-borders: #9aadb3;
   --radius: 10px;
 }
 
@@ -392,6 +395,66 @@ code {
 .meta__count {
   font-weight: 400;
   text-transform: none;
+}
+
+.gps-map {
+  width: 100%;
+  max-width: 360px;
+  margin: 0.6rem 0;
+}
+
+.gps-map__canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  background: var(--map-water);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.gps-map__land {
+  fill: var(--map-land);
+}
+
+.gps-map__borders {
+  fill: none;
+  stroke: var(--map-borders);
+  stroke-width: 0.05px;
+}
+
+.gps-map__place-label {
+  fill: var(--text);
+  stroke: var(--map-water);
+  stroke-width: 0.2px;
+  stroke-linejoin: round;
+  paint-order: stroke fill;
+  font-size: 0.8px;
+  font-weight: 700;
+}
+
+.gps-map__marker-ring {
+  fill: var(--map-water);
+  stroke: var(--text);
+}
+
+.gps-map__marker-dot {
+  fill: var(--warn);
+}
+
+.gps-map__location {
+  margin: 0.4rem 0 0;
+  color: var(--text);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.gps-map__caption {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
 }
 
 .meta__gps {

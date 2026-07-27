@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from 'react';
 import { DropZone } from './components/DropZone';
 import { FileCard } from './components/FileCard';
+import { WorldLandDefinition } from './components/GpsMap';
 import { readMetadata } from './lib/preview';
 import { stripMetadata } from './lib/strip';
 import { buildZip, downloadBlob } from './lib/zip';
@@ -150,6 +151,7 @@ export default function App() {
 
   return (
     <div className="app">
+      <WorldLandDefinition />
       <header className="header">
         <h1>
           End<span className="accent">Exif</span>
