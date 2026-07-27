@@ -26,12 +26,14 @@ jobs:
           cache: npm
 
       - run: npm ci
+      - run: npm run check:map
+      - run: npm test
       - run: npm run build
 
       - name: Publish build checksums as artifact
         run: |
           cd dist
-          sha256sum * > ../checksums.txt
+          find . -type f -print0 | sort -z | xargs -0 sha256sum > ../checksums.txt
           cat ../checksums.txt
 
       - uses: actions/upload-pages-artifact@v3
