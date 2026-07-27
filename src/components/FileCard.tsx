@@ -1,5 +1,6 @@
 import { type SyntheticEvent, useState } from 'react';
 import type { FileItem } from '../types';
+import { GpsMap } from './GpsMap';
 import { MetadataPanel } from './MetadataPanel';
 
 interface Props {
@@ -104,10 +105,16 @@ export function FileCard({ item, onDownload, onRemove }: Props) {
       {status === 'ready' && item.before && !item.before.clean && (
         <div className="card__result">
           {item.before.gps && (
-            <p className="card__warning">
-              Contains GPS location: {item.before.gps.latitude.toFixed(5)},{' '}
-              {item.before.gps.longitude.toFixed(5)}
-            </p>
+            <>
+              <p className="card__warning">
+                Contains GPS location: {item.before.gps.latitude.toFixed(5)},{' '}
+                {item.before.gps.longitude.toFixed(5)}
+              </p>
+              <GpsMap
+                latitude={item.before.gps.latitude}
+                longitude={item.before.gps.longitude}
+              />
+            </>
           )}
           <p className="card__removed">
             {item.before.fieldCount} metadata fields — {item.before.camera ?? 'unknown camera'}

@@ -21,6 +21,47 @@ function makeItem(overrides: Partial<FileItem> = {}): FileItem {
 }
 
 describe('FileCard', () => {
+  it('renders ready GPS warning, static map, summary, and disclosure in order', () => {
+    const markup = renderCard(
+      makeItem({
+        before: {
+          clean: false,
+          fieldCount: 2,
+          camera: 'Fujifilm X-T5',
+          gps: { latitude: 51.5074, longitude: -0.1278 },
+          fields: { Make: 'Fujifilm', GPSLatitude: '51.5074' },
+        },
+      }),
+    );
+
+    const warning = 'Contains GPS location: 51.50740, -0.12780';
+    const caption = 'Approximate location · rendered locally';
+    const summary = '2 metadata fields — Fujifilm X-T5';
+    const disclosure = 'View all 2 metadata fields';
+
+    expect(markup).toContain(warning);
+    expect(markup).toContain('<figure class="gps-map">');
+    expect(markup).toContain(caption);
+    expect(markup.indexOf(warning)).toBeLessThan(markup.indexOf('<figure class="gps-map">'));
+    expect(markup.indexOf(caption)).toBeLessThan(markup.indexOf(summary));
+    expect(markup.indexOf(summary)).toBeLessThan(markup.indexOf(disclosure));
+  });
+
+  it('does not render a map for a ready card without GPS', () => {
+    const markup = renderCard(
+      makeItem({
+        before: {
+          clean: false,
+          fieldCount: 1,
+          fields: { Artist: 'Ada Lovelace' },
+        },
+      }),
+    );
+
+    expect(markup).not.toContain('<figure class="gps-map">');
+    expect(markup).not.toContain('Approximate location · rendered locally');
+  });
+
   it('keeps ready metadata fields unmounted while disclosure is closed', () => {
     const markup = renderCard(
       makeItem({
@@ -57,6 +98,8 @@ describe('FileCard', () => {
 
     expect(markup).not.toContain('<details');
     expect(markup).not.toContain('View all');
+    expect(markup).not.toContain('<figure class="gps-map">');
+    expect(markup).not.toContain('Approximate location · rendered locally');
   });
 
   it('preserves done-state before and after behavior', () => {
@@ -66,6 +109,7 @@ describe('FileCard', () => {
         before: {
           clean: false,
           fieldCount: 1,
+          gps: { latitude: 51.5074, longitude: -0.1278 },
           fields: { Artist: 'Ada Lovelace' },
         },
         result: {
@@ -81,5 +125,7 @@ describe('FileCard', () => {
 
     expect(markup).toContain('Show before / after');
     expect(markup).not.toContain('View all 1 metadata fields');
+    expect(markup).not.toContain('<figure class="gps-map">');
+    expect(markup).not.toContain('Approximate location · rendered locally');
   });
 });
