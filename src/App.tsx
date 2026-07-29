@@ -217,7 +217,7 @@ export default function App() {
           open DevTools → Network tab → watch nothing happen.
         </p>
         <p>
-          <a href="https://github.com/endexif/end-exif" rel="noreferrer">
+          <a href="https://github.com/bktim/endexif" rel="noreferrer">
             Source code
           </a>{' '}
           · MIT License
