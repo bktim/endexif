@@ -8,15 +8,16 @@ export interface ZipEntry {
 /** Build a ZIP archive in memory. Fine for typical photo batches. */
 export function buildZip(entries: ZipEntry[]): Uint8Array {
   const input: Record<string, Uint8Array> = {};
-  const seen = new Map<string, number>();
+  const usedNames = new Set<string>();
   for (const entry of entries) {
-    // De-dupe file names inside the archive
-    const count = seen.get(entry.name) ?? 0;
-    seen.set(entry.name, count + 1);
-    const name =
-      count === 0
-        ? entry.name
-        : entry.name.replace(/(\.[^.]*)?$/, `-${count}$1`);
+    const baseName = entry.name === '__proto__' ? '__proto__-1' : entry.name;
+    let name = baseName;
+    let suffix = 0;
+    while (usedNames.has(name)) {
+      suffix += 1;
+      name = baseName.replace(/(\.[^.]*)?$/, `-${suffix}$1`);
+    }
+    usedNames.add(name);
     input[name] = entry.data;
   }
   return zipSync(input, { level: 0 }); // already-compressed images: store, don't re-deflate
