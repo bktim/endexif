@@ -3,6 +3,12 @@
 Strip EXIF, GPS and other metadata from your photos — **100% in your browser**.
 Your files never leave your device. No uploads, no servers, no analytics.
 
+## Try live app
+
+**[Try EndExif](https://bktim.github.io/endexif/)**
+
+![EndExif application](public/readme/hero.png)
+
 ## Features
 
 - **Lossless stripping** — metadata segments are removed at the byte level.
